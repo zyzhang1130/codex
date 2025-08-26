@@ -407,6 +407,9 @@ pub struct ConfigToml {
     /// Sandbox configuration to apply if `sandbox` is `WorkspaceWrite`.
     pub sandbox_workspace_write: Option<SandboxWorkspaceWrite>,
 
+    /// Paths that should be blocked from read access when running commands.
+    pub read_blocklist: Option<Vec<PathBuf>>,
+
     /// Disable server-side response storage (sends the full conversation
     /// context with every request). Currently necessary for OpenAI customers
     /// who have opted into Zero Data Retention (ZDR).
@@ -505,8 +508,9 @@ impl ConfigToml {
         let resolved_sandbox_mode = sandbox_mode_override
             .or(self.sandbox_mode)
             .unwrap_or_default();
+        let read_blocklist = self.read_blocklist.clone().unwrap_or_default();
         match resolved_sandbox_mode {
-            SandboxMode::ReadOnly => SandboxPolicy::new_read_only_policy(),
+            SandboxMode::ReadOnly => SandboxPolicy::ReadOnly { read_blocklist },
             SandboxMode::WorkspaceWrite => match self.sandbox_workspace_write.as_ref() {
                 Some(SandboxWorkspaceWrite {
                     writable_roots,
@@ -518,10 +522,17 @@ impl ConfigToml {
                     network_access: *network_access,
                     exclude_tmpdir_env_var: *exclude_tmpdir_env_var,
                     exclude_slash_tmp: *exclude_slash_tmp,
+                    read_blocklist,
                 },
-                None => SandboxPolicy::new_workspace_write_policy(),
+                None => SandboxPolicy::WorkspaceWrite {
+                    writable_roots: vec![],
+                    network_access: false,
+                    exclude_tmpdir_env_var: false,
+                    exclude_slash_tmp: false,
+                    read_blocklist,
+                },
             },
-            SandboxMode::DangerFullAccess => SandboxPolicy::DangerFullAccess,
+            SandboxMode::DangerFullAccess => SandboxPolicy::DangerFullAccess { read_blocklist },
         }
     }
 
@@ -939,7 +950,7 @@ network_access = false  # This should be ignored.
             .expect("TOML deserialization should succeed");
         let sandbox_mode_override = None;
         assert_eq!(
-            SandboxPolicy::DangerFullAccess,
+            SandboxPolicy::DangerFullAccess { read_blocklist: Vec::new() },
             sandbox_full_access_cfg.derive_sandbox_policy(sandbox_mode_override)
         );
 
@@ -954,7 +965,7 @@ network_access = true  # This should be ignored.
             .expect("TOML deserialization should succeed");
         let sandbox_mode_override = None;
         assert_eq!(
-            SandboxPolicy::ReadOnly,
+            SandboxPolicy::ReadOnly { read_blocklist: Vec::new() },
             sandbox_read_only_cfg.derive_sandbox_policy(sandbox_mode_override)
         );
 
@@ -978,6 +989,7 @@ exclude_slash_tmp = true
                 network_access: false,
                 exclude_tmpdir_env_var: true,
                 exclude_slash_tmp: true,
+                read_blocklist: Vec::new(),
             },
             sandbox_workspace_write_cfg.derive_sandbox_policy(sandbox_mode_override)
         );

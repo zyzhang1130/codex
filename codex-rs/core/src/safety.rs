@@ -176,10 +176,10 @@ fn is_write_patch_constrained_to_writable_paths(
 ) -> bool {
     // Early‑exit if there are no declared writable roots.
     let writable_roots = match sandbox_policy {
-        SandboxPolicy::ReadOnly => {
+        SandboxPolicy::ReadOnly { .. } => {
             return false;
         }
-        SandboxPolicy::DangerFullAccess => {
+        SandboxPolicy::DangerFullAccess { .. } => {
             return true;
         }
         SandboxPolicy::WorkspaceWrite { .. } => sandbox_policy.get_writable_roots_with_cwd(cwd),
@@ -269,6 +269,7 @@ mod tests {
             network_access: false,
             exclude_tmpdir_env_var: true,
             exclude_slash_tmp: true,
+            read_blocklist: Vec::new(),
         };
 
         assert!(is_write_patch_constrained_to_writable_paths(
@@ -290,6 +291,7 @@ mod tests {
             network_access: false,
             exclude_tmpdir_env_var: true,
             exclude_slash_tmp: true,
+            read_blocklist: Vec::new(),
         };
         assert!(is_write_patch_constrained_to_writable_paths(
             &add_outside,
@@ -303,7 +305,7 @@ mod tests {
         // Should not be a trusted command
         let command = vec!["git commit".to_string()];
         let approval_policy = AskForApproval::OnRequest;
-        let sandbox_policy = SandboxPolicy::ReadOnly;
+        let sandbox_policy = SandboxPolicy::ReadOnly { read_blocklist: Vec::new() };
         let approved: HashSet<Vec<String>> = HashSet::new();
         let request_escalated_privileges = true;
 
@@ -322,7 +324,7 @@ mod tests {
     fn test_request_escalated_privileges_no_sandbox_fallback() {
         let command = vec!["git".to_string(), "commit".to_string()];
         let approval_policy = AskForApproval::OnRequest;
-        let sandbox_policy = SandboxPolicy::ReadOnly;
+        let sandbox_policy = SandboxPolicy::ReadOnly { read_blocklist: Vec::new() };
         let approved: HashSet<Vec<String>> = HashSet::new();
         let request_escalated_privileges = false;
 

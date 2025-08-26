@@ -319,7 +319,7 @@ mod tests {
                     justification: None,
                 },
                 SandboxType::None,
-                &SandboxPolicy::DangerFullAccess,
+                &SandboxPolicy::DangerFullAccess { read_blocklist: Vec::new() },
                 &None,
                 None,
             )

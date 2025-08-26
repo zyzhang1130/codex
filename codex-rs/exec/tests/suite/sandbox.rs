@@ -58,6 +58,7 @@ async fn python_multiprocessing_lock_works_under_sandbox() {
         network_access: false,
         exclude_tmpdir_env_var: false,
         exclude_slash_tmp: false,
+        read_blocklist: Vec::new(),
     };
 
     let python_code = r#"import multiprocessing
@@ -169,7 +170,7 @@ fn unix_sock_body() {
 async fn allow_unix_socketpair_recvfrom() {
     run_code_under_sandbox(
         "allow_unix_socketpair_recvfrom",
-        &SandboxPolicy::ReadOnly,
+        &SandboxPolicy::ReadOnly { read_blocklist: Vec::new() },
         || async { unix_sock_body() },
     )
     .await

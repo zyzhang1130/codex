@@ -42,14 +42,14 @@ impl EnvironmentContext {
             cwd,
             approval_policy,
             sandbox_mode: match sandbox_policy {
-                Some(SandboxPolicy::DangerFullAccess) => Some(SandboxMode::DangerFullAccess),
-                Some(SandboxPolicy::ReadOnly) => Some(SandboxMode::ReadOnly),
+                Some(SandboxPolicy::DangerFullAccess { .. }) => Some(SandboxMode::DangerFullAccess),
+                Some(SandboxPolicy::ReadOnly { .. }) => Some(SandboxMode::ReadOnly),
                 Some(SandboxPolicy::WorkspaceWrite { .. }) => Some(SandboxMode::WorkspaceWrite),
                 None => None,
             },
             network_access: match sandbox_policy {
-                Some(SandboxPolicy::DangerFullAccess) => Some(NetworkAccess::Enabled),
-                Some(SandboxPolicy::ReadOnly) => Some(NetworkAccess::Restricted),
+                Some(SandboxPolicy::DangerFullAccess { .. }) => Some(NetworkAccess::Enabled),
+                Some(SandboxPolicy::ReadOnly { .. }) => Some(NetworkAccess::Restricted),
                 Some(SandboxPolicy::WorkspaceWrite { network_access, .. }) => {
                     if network_access {
                         Some(NetworkAccess::Enabled)
