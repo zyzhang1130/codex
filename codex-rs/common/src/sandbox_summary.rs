@@ -2,13 +2,14 @@ use codex_core::protocol::SandboxPolicy;
 
 pub fn summarize_sandbox_policy(sandbox_policy: &SandboxPolicy) -> String {
     match sandbox_policy {
-        SandboxPolicy::DangerFullAccess => "danger-full-access".to_string(),
-        SandboxPolicy::ReadOnly => "read-only".to_string(),
+        SandboxPolicy::DangerFullAccess { .. } => "danger-full-access".to_string(),
+        SandboxPolicy::ReadOnly { .. } => "read-only".to_string(),
         SandboxPolicy::WorkspaceWrite {
             writable_roots,
             network_access,
             exclude_tmpdir_env_var,
             exclude_slash_tmp,
+            read_blocklist: _,
         } => {
             let mut summary = "workspace-write".to_string();
 

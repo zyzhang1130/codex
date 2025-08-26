@@ -189,11 +189,19 @@ pub enum AskForApproval {
 pub enum SandboxPolicy {
     /// No restrictions whatsoever. Use with caution.
     #[serde(rename = "danger-full-access")]
-    DangerFullAccess,
+    DangerFullAccess {
+        /// Paths that should remain unreadable from within the sandbox.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        read_blocklist: Vec<PathBuf>,
+    },
 
     /// Read-only access to the entire file-system.
     #[serde(rename = "read-only")]
-    ReadOnly,
+    ReadOnly {
+        /// Paths that should remain unreadable from within the sandbox.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        read_blocklist: Vec<PathBuf>,
+    },
 
     /// Same as `ReadOnly` but additionally grants write access to the current
     /// working directory ("workspace").
@@ -219,6 +227,10 @@ pub enum SandboxPolicy {
         /// writable roots on UNIX. Defaults to `false`.
         #[serde(default)]
         exclude_slash_tmp: bool,
+
+        /// Paths that should remain unreadable from within the sandbox.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        read_blocklist: Vec<PathBuf>,
     },
 }
 
@@ -264,7 +276,9 @@ impl FromStr for SandboxPolicy {
 impl SandboxPolicy {
     /// Returns a policy with read-only disk access and no network.
     pub fn new_read_only_policy() -> Self {
-        SandboxPolicy::ReadOnly
+        SandboxPolicy::ReadOnly {
+            read_blocklist: Vec::new(),
+        }
     }
 
     /// Returns a policy that can read the entire disk, but can only write to
@@ -276,26 +290,27 @@ impl SandboxPolicy {
             network_access: false,
             exclude_tmpdir_env_var: false,
             exclude_slash_tmp: false,
+            read_blocklist: Vec::new(),
         }
     }
 
-    /// Always returns `true`; restricting read access is not supported.
+    /// Returns `true` when there are no read restrictions.
     pub fn has_full_disk_read_access(&self) -> bool {
-        true
+        self.get_read_blocklist().is_empty()
     }
 
     pub fn has_full_disk_write_access(&self) -> bool {
         match self {
-            SandboxPolicy::DangerFullAccess => true,
-            SandboxPolicy::ReadOnly => false,
+            SandboxPolicy::DangerFullAccess { .. } => true,
+            SandboxPolicy::ReadOnly { .. } => false,
             SandboxPolicy::WorkspaceWrite { .. } => false,
         }
     }
 
     pub fn has_full_network_access(&self) -> bool {
         match self {
-            SandboxPolicy::DangerFullAccess => true,
-            SandboxPolicy::ReadOnly => false,
+            SandboxPolicy::DangerFullAccess { .. } => true,
+            SandboxPolicy::ReadOnly { .. } => false,
             SandboxPolicy::WorkspaceWrite { network_access, .. } => *network_access,
         }
     }
@@ -305,13 +320,14 @@ impl SandboxPolicy {
     /// each writable root.
     pub fn get_writable_roots_with_cwd(&self, cwd: &Path) -> Vec<WritableRoot> {
         match self {
-            SandboxPolicy::DangerFullAccess => Vec::new(),
-            SandboxPolicy::ReadOnly => Vec::new(),
+            SandboxPolicy::DangerFullAccess { .. } => Vec::new(),
+            SandboxPolicy::ReadOnly { .. } => Vec::new(),
             SandboxPolicy::WorkspaceWrite {
                 writable_roots,
                 exclude_tmpdir_env_var,
                 exclude_slash_tmp,
                 network_access: _,
+                read_blocklist: _,
             } => {
                 // Start from explicitly configured writable roots.
                 let mut roots: Vec<PathBuf> = writable_roots.clone();
@@ -359,6 +375,15 @@ impl SandboxPolicy {
                     })
                     .collect()
             }
+        }
+    }
+
+    /// Returns the list of paths that should remain unreadable from within the sandbox.
+    pub fn get_read_blocklist(&self) -> &[PathBuf] {
+        match self {
+            SandboxPolicy::DangerFullAccess { read_blocklist }
+            | SandboxPolicy::ReadOnly { read_blocklist }
+            | SandboxPolicy::WorkspaceWrite { read_blocklist, .. } => read_blocklist,
         }
     }
 }

@@ -258,10 +258,10 @@ The shell tool is used to execute shell commands.
                 }
             )
         }
-        SandboxPolicy::DangerFullAccess => {
+        SandboxPolicy::DangerFullAccess { .. } => {
             "Runs a shell command and returns its output.".to_string()
         }
-        SandboxPolicy::ReadOnly => {
+        SandboxPolicy::ReadOnly { .. } => {
             r#"
 The shell tool is used to execute shell commands.
 - When invoking the shell tool, your call will be running in a landlock sandbox, and some shell commands (including apply_patch) will require escalated permissions:
@@ -599,7 +599,7 @@ mod tests {
         let config = ToolsConfig::new(&ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
-            sandbox_policy: SandboxPolicy::ReadOnly,
+            sandbox_policy: SandboxPolicy::ReadOnly { read_blocklist: Vec::new() },
             include_plan_tool: true,
             include_apply_patch_tool: false,
             include_web_search_request: true,
@@ -616,7 +616,7 @@ mod tests {
         let config = ToolsConfig::new(&ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
-            sandbox_policy: SandboxPolicy::ReadOnly,
+            sandbox_policy: SandboxPolicy::ReadOnly { read_blocklist: Vec::new() },
             include_plan_tool: true,
             include_apply_patch_tool: false,
             include_web_search_request: true,
@@ -633,7 +633,7 @@ mod tests {
         let config = ToolsConfig::new(&ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
-            sandbox_policy: SandboxPolicy::ReadOnly,
+            sandbox_policy: SandboxPolicy::ReadOnly { read_blocklist: Vec::new() },
             include_plan_tool: false,
             include_apply_patch_tool: false,
             include_web_search_request: true,
@@ -732,7 +732,7 @@ mod tests {
         let config = ToolsConfig::new(&ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
-            sandbox_policy: SandboxPolicy::ReadOnly,
+            sandbox_policy: SandboxPolicy::ReadOnly { read_blocklist: Vec::new() },
             include_plan_tool: false,
             include_apply_patch_tool: false,
             include_web_search_request: false,
@@ -807,7 +807,7 @@ mod tests {
         let config = ToolsConfig::new(&ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
-            sandbox_policy: SandboxPolicy::ReadOnly,
+            sandbox_policy: SandboxPolicy::ReadOnly { read_blocklist: Vec::new() },
             include_plan_tool: false,
             include_apply_patch_tool: false,
             include_web_search_request: true,
@@ -865,7 +865,7 @@ mod tests {
         let config = ToolsConfig::new(&ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
-            sandbox_policy: SandboxPolicy::ReadOnly,
+            sandbox_policy: SandboxPolicy::ReadOnly { read_blocklist: Vec::new() },
             include_plan_tool: false,
             include_apply_patch_tool: false,
             include_web_search_request: true,
@@ -918,7 +918,7 @@ mod tests {
         let config = ToolsConfig::new(&ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
-            sandbox_policy: SandboxPolicy::ReadOnly,
+            sandbox_policy: SandboxPolicy::ReadOnly { read_blocklist: Vec::new() },
             include_plan_tool: false,
             include_apply_patch_tool: false,
             include_web_search_request: true,
@@ -974,7 +974,7 @@ mod tests {
         let config = ToolsConfig::new(&ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
-            sandbox_policy: SandboxPolicy::ReadOnly,
+            sandbox_policy: SandboxPolicy::ReadOnly { read_blocklist: Vec::new() },
             include_plan_tool: false,
             include_apply_patch_tool: false,
             include_web_search_request: true,

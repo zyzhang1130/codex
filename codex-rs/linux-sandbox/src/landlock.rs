@@ -43,9 +43,11 @@ pub(crate) fn apply_sandbox_policy_to_current_thread(
             .collect();
         install_filesystem_landlock_rules_on_current_thread(writable_roots)?;
     }
-
-    // TODO(ragona): Add appropriate restrictions if
-    // `sandbox_policy.has_full_disk_read_access()` is `false`.
+    if !sandbox_policy.has_full_disk_read_access() {
+        install_read_blocklist_landlock_rules_on_current_thread(
+            sandbox_policy.get_read_blocklist(),
+        )?;
+    }
 
     Ok(())
 }
@@ -79,6 +81,33 @@ fn install_filesystem_landlock_rules_on_current_thread(writable_roots: Vec<PathB
         return Err(CodexErr::Sandbox(SandboxErr::LandlockRestrict));
     }
 
+    Ok(())
+}
+
+fn install_read_blocklist_landlock_rules_on_current_thread(blocklist: &[PathBuf]) -> Result<()> {
+    if blocklist.is_empty() {
+        return Ok(());
+    }
+
+    let abi = ABI::V5;
+    let access_ro = AccessFs::from_read(abi);
+    // Create a ruleset that allows read access to everything.
+    let mut ruleset = Ruleset::default()
+        .set_compatibility(CompatLevel::BestEffort)
+        .handle_access(access_ro)?
+        .create()?
+        .add_rules(landlock::path_beneath_rules(&["/"], access_ro))?
+        .set_no_new_privs(true);
+
+    // For each blocked path, add a rule with no permissions.
+    for path in blocklist {
+        ruleset = ruleset.add_rules(landlock::path_beneath_rules(&[path], AccessFs::empty()))?;
+    }
+
+    let status = ruleset.restrict_self()?;
+    if status.ruleset == landlock::RulesetStatus::NotEnforced {
+        return Err(CodexErr::Sandbox(SandboxErr::LandlockRestrict));
+    }
     Ok(())
 }
 

@@ -16,6 +16,8 @@
     (path "/dev/null")
     (vnode-type CHARACTER-DEVICE)))
 
+; Additional read restrictions are appended dynamically.
+
 ; sysctls permitted.
 (allow sysctl-read
   (sysctl-name "hw.activecpu")

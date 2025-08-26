@@ -52,6 +52,7 @@ async fn run_cmd(cmd: &[&str], writable_roots: &[PathBuf], timeout_ms: u64) {
         // writing to in the sandbox.
         exclude_tmpdir_env_var: true,
         exclude_slash_tmp: true,
+        read_blocklist: Vec::new(),
     };
     let sandbox_program = env!("CARGO_BIN_EXE_codex-linux-sandbox");
     let codex_linux_sandbox_exe = Some(PathBuf::from(sandbox_program));
@@ -227,4 +228,69 @@ async fn sandbox_blocks_dev_tcp_redirection() {
     // Fallback generic socket attempt using /bin/sh with bash‑style /dev/tcp.  Not
     // all images ship bash, so we guard against 127 as well.
     assert_network_blocked(&["bash", "-c", "echo hi > /dev/tcp/127.0.0.1/80"]).await;
+}
+
+#[tokio::test]
+async fn read_blocklist_blocks_file() {
+    use std::io::Write;
+
+    let mut tmpfile = NamedTempFile::new().unwrap();
+    writeln!(tmpfile, "secret").unwrap();
+    let tmp_path = tmpfile.path().to_path_buf();
+
+    let cwd = std::env::current_dir().expect("cwd should exist");
+    let env = create_env_from_core_vars();
+
+    let sandbox_policy = SandboxPolicy::WorkspaceWrite {
+        writable_roots: vec![],
+        network_access: false,
+        exclude_tmpdir_env_var: true,
+        exclude_slash_tmp: true,
+        read_blocklist: vec![tmp_path.clone()],
+    };
+    let sandbox_program = env!("CARGO_BIN_EXE_codex-linux-sandbox");
+    let codex_linux_sandbox_exe = Some(PathBuf::from(sandbox_program));
+
+    // Reading unblocked path succeeds.
+    let params_ok = ExecParams {
+        command: vec!["cat".to_string(), "/etc/hosts".to_string()],
+        cwd: cwd.clone(),
+        timeout_ms: Some(SHORT_TIMEOUT_MS),
+        env: env.clone(),
+        with_escalated_permissions: None,
+        justification: None,
+    };
+    let ok = process_exec_tool_call(
+        params_ok,
+        SandboxType::LinuxSeccomp,
+        &sandbox_policy,
+        &codex_linux_sandbox_exe,
+        None,
+    )
+    .await
+    .unwrap();
+    assert_eq!(ok.exit_code, 0);
+
+    // Reading blocked path fails.
+    let params_block = ExecParams {
+        command: vec![
+            "cat".to_string(),
+            tmp_path.to_string_lossy().to_string(),
+        ],
+        cwd,
+        timeout_ms: Some(SHORT_TIMEOUT_MS),
+        env,
+        with_escalated_permissions: None,
+        justification: None,
+    };
+    let blocked = process_exec_tool_call(
+        params_block,
+        SandboxType::LinuxSeccomp,
+        &sandbox_policy,
+        &codex_linux_sandbox_exe,
+        None,
+    )
+    .await
+    .unwrap();
+    assert_ne!(blocked.exit_code, 0);
 }

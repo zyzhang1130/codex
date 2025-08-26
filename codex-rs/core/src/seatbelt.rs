@@ -96,10 +96,25 @@ fn create_seatbelt_command_args(
         }
     };
 
-    let file_read_policy = if sandbox_policy.has_full_disk_read_access() {
-        "; allow read-only file operations\n(allow file-read*)"
+    let (file_read_policy, mut read_blocklist_args) = if sandbox_policy.get_read_blocklist().is_empty() {
+        (
+            "; allow read-only file operations\n(allow file-read*)".to_string(),
+            Vec::new(),
+        )
     } else {
-        ""
+        let mut args = Vec::new();
+        let mut deny_parts = Vec::new();
+        for (idx, path) in sandbox_policy.get_read_blocklist().iter().enumerate() {
+            let canon = path.canonicalize().unwrap_or_else(|_| path.clone());
+            let param = format!("READ_BLOCK_{idx}");
+            args.push(format!("-D{param}={}", canon.to_string_lossy()));
+            deny_parts.push(format!("(literal (param \"{param}\"))"));
+        }
+        let policy = format!(
+            "; allow read-only file operations\n(allow file-read*)\n(deny file-read* {})",
+            deny_parts.join(" ")
+        );
+        (policy, args)
     };
 
     // TODO(mbolin): apply_patch calls must also honor the SandboxPolicy.
@@ -115,6 +130,7 @@ fn create_seatbelt_command_args(
 
     let mut seatbelt_args: Vec<String> = vec!["-p".to_string(), full_policy];
     seatbelt_args.extend(extra_cli_args);
+    seatbelt_args.extend(read_blocklist_args);
     seatbelt_args.push("--".to_string());
     seatbelt_args.extend(command);
     seatbelt_args
@@ -157,6 +173,7 @@ mod tests {
             network_access: false,
             exclude_tmpdir_env_var: true,
             exclude_slash_tmp: true,
+            read_blocklist: Vec::new(),
         };
 
         let args = create_seatbelt_command_args(
@@ -232,6 +249,7 @@ mod tests {
             network_access: false,
             exclude_tmpdir_env_var: false,
             exclude_slash_tmp: false,
+            read_blocklist: Vec::new(),
         };
 
         let args = create_seatbelt_command_args(

@@ -651,8 +651,8 @@ pub(crate) fn new_status_output(
     ]));
     // Sandbox (simplified name only)
     let sandbox_name = match &config.sandbox_policy {
-        SandboxPolicy::DangerFullAccess => "danger-full-access",
-        SandboxPolicy::ReadOnly => "read-only",
+        SandboxPolicy::DangerFullAccess { .. } => "danger-full-access",
+        SandboxPolicy::ReadOnly { .. } => "read-only",
         SandboxPolicy::WorkspaceWrite { .. } => "workspace-write",
     };
     lines.push(Line::from(vec![

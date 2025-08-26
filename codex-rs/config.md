@@ -308,6 +308,17 @@ writable_roots = ["/Users/YOU/.pyenv/shims"]
 network_access = false
 ```
 
+### read_blocklist
+
+Regardless of the selected `sandbox_mode`, you can prevent Codex from reading
+specific files or directories by listing their absolute paths in
+`read_blocklist`. Any attempt to read from these paths will fail inside the
+sandbox.
+
+```toml
+read_blocklist = ["/absolute/path/to/secret.txt"]
+```
+
 To disable sandboxing altogether, specify `danger-full-access` like so:
 
 ```toml

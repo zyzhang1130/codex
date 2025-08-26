@@ -80,6 +80,7 @@ async fn if_parent_of_repo_is_writable_then_dot_git_folder_is_writable() {
         network_access: false,
         exclude_tmpdir_env_var: true,
         exclude_slash_tmp: true,
+        read_blocklist: Vec::new(),
     };
 
     test_scenario
@@ -106,6 +107,7 @@ async fn if_git_repo_is_writable_root_then_dot_git_folder_is_read_only() {
         network_access: false,
         exclude_tmpdir_env_var: true,
         exclude_slash_tmp: true,
+        read_blocklist: Vec::new(),
     };
 
     test_scenario
@@ -126,7 +128,7 @@ async fn if_git_repo_is_writable_root_then_dot_git_folder_is_read_only() {
 async fn danger_full_access_allows_all_writes() {
     let tmp = TempDir::new().expect("should be able to create temp dir");
     let test_scenario = create_test_scenario(&tmp);
-    let policy = SandboxPolicy::DangerFullAccess;
+    let policy = SandboxPolicy::DangerFullAccess { read_blocklist: Vec::new() };
 
     test_scenario
         .run_test(
@@ -145,7 +147,7 @@ async fn danger_full_access_allows_all_writes() {
 async fn read_only_forbids_all_writes() {
     let tmp = TempDir::new().expect("should be able to create temp dir");
     let test_scenario = create_test_scenario(&tmp);
-    let policy = SandboxPolicy::ReadOnly;
+    let policy = SandboxPolicy::ReadOnly { read_blocklist: Vec::new() };
 
     test_scenario
         .run_test(
@@ -157,6 +159,24 @@ async fn read_only_forbids_all_writes() {
             },
         )
         .await;
+}
+
+#[tokio::test]
+async fn read_blocklist_denies_read() {
+    let tmp = TempDir::new().expect("should be able to create temp dir");
+    let secret = tmp.path().join("secret.txt");
+    std::fs::write(&secret, b"secret").expect("write secret");
+    let policy = SandboxPolicy::ReadOnly {
+        read_blocklist: vec![secret.clone()],
+    };
+
+    // Reading blocked file should fail.
+    assert!(!cat(&secret, &policy).await);
+
+    // Reading another file should succeed.
+    let allowed = tmp.path().join("allowed.txt");
+    std::fs::write(&allowed, b"hi").expect("write allowed");
+    assert!(cat(&allowed, &policy).await);
 }
 
 #[expect(clippy::expect_used)]
@@ -186,6 +206,25 @@ async fn touch(path: &Path, policy: &SandboxPolicy) -> bool {
             "/usr/bin/touch".to_string(),
             path.to_string_lossy().to_string(),
         ],
+        policy,
+        std::env::current_dir().expect("should be able to get current dir"),
+        StdioPolicy::RedirectForShellTool,
+        HashMap::new(),
+    )
+    .await
+    .expect("should be able to spawn command under seatbelt");
+    child
+        .wait()
+        .await
+        .expect("should be able to wait for child process")
+        .success()
+}
+
+#[expect(clippy::expect_used)]
+async fn cat(path: &Path, policy: &SandboxPolicy) -> bool {
+    assert!(path.is_absolute(), "Path must be absolute: {path:?}");
+    let mut child = spawn_command_under_seatbelt(
+        vec!["/bin/cat".to_string(), path.to_string_lossy().to_string()],
         policy,
         std::env::current_dir().expect("should be able to get current dir"),
         StdioPolicy::RedirectForShellTool,
