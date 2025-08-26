@@ -115,12 +115,12 @@ pub(crate) fn assess_safety_for_untrusted_command(
             // commands.
             SafetyCheck::AskUser
         }
-        (OnFailure, DangerFullAccess)
-        | (Never, DangerFullAccess)
-        | (OnRequest, DangerFullAccess) => SafetyCheck::AutoApprove {
+        (OnFailure, DangerFullAccess { .. })
+        | (Never, DangerFullAccess { .. })
+        | (OnRequest, DangerFullAccess { .. }) => SafetyCheck::AutoApprove {
             sandbox_type: SandboxType::None,
         },
-        (OnRequest, ReadOnly) | (OnRequest, WorkspaceWrite { .. }) => {
+        (OnRequest, ReadOnly { .. }) | (OnRequest, WorkspaceWrite { .. }) => {
             if with_escalated_permissions {
                 SafetyCheck::AskUser
             } else {
@@ -132,9 +132,9 @@ pub(crate) fn assess_safety_for_untrusted_command(
                 }
             }
         }
-        (Never, ReadOnly)
+        (Never, ReadOnly { .. })
         | (Never, WorkspaceWrite { .. })
-        | (OnFailure, ReadOnly)
+        | (OnFailure, ReadOnly { .. })
         | (OnFailure, WorkspaceWrite { .. }) => {
             match get_platform_sandbox() {
                 Some(sandbox_type) => SafetyCheck::AutoApprove { sandbox_type },

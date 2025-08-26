@@ -531,6 +531,96 @@ Codex supports a rich set of configuration options documented in [`codex-rs/conf
 
 By default, Codex loads its configuration from `~/.codex/config.toml`.
 
+### Blocking reads to sensitive files
+
+You can block Codex from reading specific files or directories using a `read_blocklist` that is enforced by the OS sandbox (Seatbelt on macOS, Landlock on Linux).
+
+- Configure in `~/.codex/config.toml` (absolute paths only):
+
+```toml
+# ~/.codex/config.toml
+read_blocklist = [
+  "/absolute/path/to/secret.txt",
+  "/absolute/path/to/private_dir",
+]
+```
+
+- Quick test (macOS example):
+
+```bash
+codex debug seatbelt --config 'read_blocklist=["/absolute/path/to/secret.txt"]' \
+  cat /absolute/path/to/secret.txt
+# expect: non‑zero exit (read denied)
+```
+
+Notes:
+- Paths must be absolute because subprocesses may change their working directory; the sandbox expects stable, fully‑resolved paths.
+- Blocking is enforced by the OS sandbox. New files added later are not automatically blocked unless you update `read_blocklist` (e.g., via a helper script).
+
+#### Optional helper: keep the blocklist in sync for a directory
+
+If you want to block a class of files such as `.env` and all `*.json` under a directory, you can use this convenience script to (re)generate the `read_blocklist` entries. Save as `~/.codex/sync_read_blocklist.sh` and make it executable (`chmod +x ~/.codex/sync_read_blocklist.sh`):
+
+```bash
+#!/usr/bin/env bash
+# Sync read_blocklist in ~/.codex/config.toml with .env and all *.json files
+# under a specified directory (default: /path/to/project).
+set -euo pipefail
+BASE="${1:-/path/to/project}"
+CONF_DIR="$HOME/.codex"
+CONF_FILE="$CONF_DIR/config.toml"
+mkdir -p "$CONF_DIR"
+
+# Build list of absolute file paths to block
+LIST_FILE=$(mktemp)
+trap 'rm -f "$LIST_FILE"' EXIT
+if [[ -d "$BASE" ]]; then
+  find -L "$BASE" -type f -name '*.json' -print0 \
+    | xargs -0 -I{} printf '%s\n' "{}" >> "$LIST_FILE" || true
+fi
+printf '%s\n' "$BASE/.env" >> "$LIST_FILE"
+sort -u -o "$LIST_FILE" "$LIST_FILE"
+
+# Build TOML array and update config
+ARRAY=$(python3 -c "import json,sys; print('[' + ', '.join(json.dumps(l.strip()) for l in sys.stdin if l.strip()) + ']')" < "$LIST_FILE")
+export ARRAY
+python3 - <<'PY'
+import os, re
+conf = os.path.expanduser('~/.codex/config.toml')
+try:
+    with open(conf,'r') as f:
+        content = f.read()
+except FileNotFoundError:
+    content = '# Codex config\n'
+# Replace existing read_blocklist (single- or multi-line) or append a new one
+newline = f'read_blocklist = {os.environ.get("ARRAY","[]")}'
+pat = re.compile(r'^\s*read_blocklist\s*=\s*\[.*?\]', re.M | re.S)
+if pat.search(content):
+    content = pat.sub(newline, content, count=1)
+else:
+    if not content.endswith('\n'):
+        content += '\n'
+    content += newline + '\n'
+with open(conf,'w') as f:
+    f.write(content)
+PY
+```
+
+Usage examples:
+
+```bash
+# One‑off sync for a directory
+~/.codex/sync_read_blocklist.sh /absolute/path/to/project
+
+# Handy zsh function to sync for the current directory
+cat >> ~/.zshrc <<'ZSH'
+codex-sync-here() {
+  ~/.codex/sync_read_blocklist.sh "$PWD"
+}
+ZSH
+source ~/.zshrc
+```
+
 Though `--config` can be used to set/override ad-hoc config values for individual invocations of `codex`.
 
 ---
@@ -698,7 +788,6 @@ Create a PR to update [`Formula/c/codex.rb`](https://github.com/Homebrew/homebre
 
 Have you discovered a vulnerability or have concerns about model output? Please e-mail **security@openai.com** and we will respond promptly.
 
----
 
 ## License
 
