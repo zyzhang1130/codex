@@ -79,6 +79,7 @@ use codex_core::protocol::AskForApproval;
 use codex_core::protocol::SandboxPolicy;
 use codex_core::protocol_config_types::ReasoningEffort as ReasoningEffortConfig;
 use codex_file_search::FileMatch;
+use tempfile::TempDir;
 use uuid::Uuid;
 
 // Track information about an in-flight exec command.
@@ -114,6 +115,8 @@ pub(crate) struct ChatWidget {
     last_history_was_exec: bool,
     // User messages queued while a turn is in progress
     queued_user_messages: VecDeque<UserMessage>,
+    // Hold temp dirs for editor diff files so they are not GC'd immediately
+    open_diff_temps: Vec<TempDir>,
 }
 
 struct UserMessage {
@@ -293,12 +296,18 @@ impl ChatWidget {
     }
 
     fn on_patch_apply_begin(&mut self, event: PatchApplyBeginEvent) {
+        let changes_for_editor = event.changes.clone();
         self.add_to_history(history_cell::new_patch_event(
             PatchEventType::ApplyBegin {
                 auto_approved: event.auto_approved,
             },
             event.changes,
         ));
+        // If the patch was auto-approved, proactively open editor diffs for all changes
+        // so users can quickly review what was applied.
+        if event.auto_approved {
+            self.maybe_open_editor_diffs_for_changes(changes_for_editor);
+        }
     }
 
     fn on_patch_apply_end(&mut self, event: codex_core::protocol::PatchApplyEndEvent) {
@@ -490,6 +499,122 @@ impl ChatWidget {
         };
         self.bottom_pane.push_approval_request(request);
         self.request_redraw();
+
+        // Open editor diffs for all proposed changes so users can review
+        // them visually in their editor (e.g., VS Code) by default.
+        self.maybe_open_editor_diffs_for_changes(ev.changes.clone());
+    }
+
+    fn maybe_open_editor_diffs_for_changes(
+        &mut self,
+        changes: std::collections::HashMap<std::path::PathBuf, codex_core::protocol::FileChange>,
+    ) {
+        use codex_core::config_types::UriBasedFileOpener;
+        let opener = self.config.file_opener;
+        let editor = match opener {
+            UriBasedFileOpener::VsCode => Some("code"),
+            UriBasedFileOpener::VsCodeInsiders => Some("code-insiders"),
+            UriBasedFileOpener::Cursor => Some("cursor"),
+            UriBasedFileOpener::Windsurf => Some("windsurf"),
+            _ => None,
+        };
+        let editor_cmd = match editor {
+            Some(c) => c,
+            None => return,
+        };
+        let temp = match tempfile::TempDir::new() {
+            Ok(t) => t,
+            Err(_) => return,
+        };
+        let base = temp.path().to_path_buf();
+        self.open_diff_temps.push(temp);
+        for (path, change) in changes.into_iter() {
+            let rel_before = path
+                .strip_prefix(std::path::Path::new("/"))
+                .unwrap_or(&path);
+            let (before_path_for_temp, after_path_for_temp, before_contents, after_contents) =
+                match change {
+                    // New file: compare empty -> content
+                    codex_core::protocol::FileChange::Add { content } => {
+                        let before = base.join("before").join(rel_before);
+                        let after = base.join("after").join(rel_before);
+                        (before, after, String::new(), content)
+                    }
+                    // Deletion: compare original -> empty
+                    codex_core::protocol::FileChange::Delete => {
+                        let before_content = std::fs::read_to_string(&path).unwrap_or_default();
+                        let before = base.join("before").join(rel_before);
+                        let after = base.join("after").join(rel_before);
+                        (before, after, before_content, String::new())
+                    }
+                    // Modification (optionally with rename): apply unified diff to current contents
+                    codex_core::protocol::FileChange::Update {
+                        unified_diff,
+                        move_path,
+                    } => {
+                        let before_content = std::fs::read_to_string(&path).unwrap_or_default();
+                        let after_content =
+                            apply_unified_diff_to_text(&before_content, &unified_diff)
+                                .unwrap_or_else(|| before_content.clone());
+                        let after_rel = match move_path {
+                            Some(ref dest) => {
+                                dest.strip_prefix(std::path::Path::new("/")).unwrap_or(dest)
+                            }
+                            None => rel_before,
+                        };
+                        let before = base.join("before").join(rel_before);
+                        let after = base.join("after").join(after_rel);
+                        (before, after, before_content, after_content)
+                    }
+                };
+
+            if let Some(parent) = before_path_for_temp.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            if let Some(parent) = after_path_for_temp.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            let _ = std::fs::write(&before_path_for_temp, before_contents);
+            let _ = std::fs::write(&after_path_for_temp, after_contents);
+
+            let cmd = editor_cmd.to_string();
+            let b = before_path_for_temp.clone();
+            let a = after_path_for_temp.clone();
+            if tokio::runtime::Handle::try_current().is_ok() {
+            tokio::spawn(async move {
+                let status = tokio::process::Command::new(&cmd)
+                    .arg("--diff")
+                    .arg(&b)
+                    .arg(&a)
+                    .status()
+                    .await;
+                if status.is_err() {
+                    #[cfg(target_os = "macos")]
+                    {
+                        // Best-effort macOS fallback for VS Code variants only.
+                        let bundle = if cmd == "code-insiders" {
+                            Some("com.microsoft.VSCodeInsiders")
+                        } else if cmd == "code" {
+                            Some("com.microsoft.VSCode")
+                        } else {
+                            None
+                        };
+                        if let Some(bundle) = bundle {
+                            let _ = tokio::process::Command::new("open")
+                                .arg("-b")
+                                .arg(bundle)
+                                .arg("--args")
+                                .arg("--diff")
+                                .arg(&b)
+                                .arg(&a)
+                                .status()
+                                .await;
+                        }
+                    }
+                }
+            });
+            }
+        }
     }
 
     pub(crate) fn handle_exec_begin_now(&mut self, ev: ExecCommandBeginEvent) {
@@ -593,6 +718,7 @@ impl ChatWidget {
             last_history_was_exec: false,
             queued_user_messages: VecDeque::new(),
             show_welcome_banner: true,
+            open_diff_temps: Vec::new(),
         }
     }
 
@@ -638,6 +764,7 @@ impl ChatWidget {
             last_history_was_exec: false,
             queued_user_messages: VecDeque::new(),
             show_welcome_banner: false,
+            open_diff_temps: Vec::new(),
         }
     }
 
@@ -1198,6 +1325,59 @@ impl ChatWidget {
         let [_, bottom_pane_area] = self.layout_areas(area);
         self.bottom_pane.cursor_pos(bottom_pane_area)
     }
+}
+
+// Standalone helper so it can be reused cleanly above without borrowing `self`.
+fn apply_unified_diff_to_text(original: &str, unified_diff: &str) -> Option<String> {
+    let patch = diffy::Patch::from_str(unified_diff).ok()?;
+    let mut new_lines: Vec<String> = Vec::new();
+    let orig_lines: Vec<&str> = original.split('\n').collect();
+    let mut orig_cursor: usize = 0; // zero-based index into orig_lines
+
+    for h in patch.hunks() {
+        // h.old_range().start() is 1-based; convert to zero-based index
+        let start_old = h.old_range().start();
+        let start_idx = start_old.saturating_sub(1);
+
+        // Copy unchanged lines up to the start of this hunk
+        while orig_cursor < start_idx && orig_cursor < orig_lines.len() {
+            new_lines.push(orig_lines[orig_cursor].to_string());
+            orig_cursor += 1;
+        }
+
+        for l in h.lines() {
+            match l {
+                diffy::Line::Insert(text) => {
+                    let s = text.trim_end_matches('\n');
+                    new_lines.push(s.to_string());
+                }
+                diffy::Line::Delete(_text) => {
+                    // Drop this line from the new content; advance original cursor
+                    if orig_cursor < orig_lines.len() {
+                        orig_cursor += 1;
+                    }
+                }
+                diffy::Line::Context(_text) => {
+                    // Keep context line as-is from the original; advance
+                    if orig_cursor < orig_lines.len() {
+                        new_lines.push(orig_lines[orig_cursor].to_string());
+                        orig_cursor += 1;
+                    } else {
+                        // If original is shorter than expected, bail
+                        return None;
+                    }
+                }
+            }
+        }
+    }
+
+    // Append any remaining unchanged lines
+    while orig_cursor < orig_lines.len() {
+        new_lines.push(orig_lines[orig_cursor].to_string());
+        orig_cursor += 1;
+    }
+
+    Some(new_lines.join("\n"))
 }
 
 impl WidgetRef for &ChatWidget {

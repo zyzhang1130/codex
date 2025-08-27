@@ -43,6 +43,26 @@ To run Codex non-interactively, run `codex exec PROMPT` (you can also pass the p
 
 Typing `@` triggers a fuzzy-filename search over the workspace root. Use up/down to select among the results and Tab or Enter to replace the `@` with the selected path. You can use Esc to cancel the search.
 
+### Editor diffs for patches
+
+When Codex proposes or applies a patch in the TUI, it will:
+
+- Render a colored summary in the terminal, and
+- Automatically open file diffs in your editor when `file_opener` is configured (default: `"vscode"`).
+
+Details:
+
+- Supports VS Code (`code`) and VS Code Insiders (`code-insiders`) out of the box. Cursor and Windsurf are also supported if their CLIs are on your `PATH` and you set `file_opener` accordingly.
+- For adds/updates/deletes, Codex opens a two‑way diff (`--diff`) between the before/after contents so you can review visually.
+- On macOS, if `code` is not on `PATH`, Codex attempts a best‑effort fallback via `open -b com.microsoft.VSCode --args --diff`.
+
+Requirements:
+
+- Ensure your editor’s CLI is on `PATH` (for VS Code: run “Shell Command: Install ‘code’ command in PATH” from the Command Palette).
+- Optionally force for a session: `codex --config file_opener="vscode"`.
+
+See [`config.md`](./config.md#file_opener) for the `file_opener` options.
+
 ### Esc–Esc to edit a previous message
 
 When the chat composer is empty, press Esc to prime “backtrack” mode. Press Esc again to open a transcript preview highlighting the last user message; press Esc repeatedly to step to older user messages. Press Enter to confirm and Codex will fork the conversation from that point, trim the visible transcript accordingly, and pre‑fill the composer with the selected user message so you can edit and resubmit it.
