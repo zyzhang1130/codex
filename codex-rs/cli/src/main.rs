@@ -7,6 +7,7 @@ use codex_chatgpt::apply_command::ApplyCommand;
 use codex_chatgpt::apply_command::run_apply_command;
 use codex_cli::LandlockCommand;
 use codex_cli::SeatbeltCommand;
+mod diff_open;
 use codex_cli::login::run_login_status;
 use codex_cli::login::run_login_with_api_key;
 use codex_cli::login::run_login_with_chatgpt;
@@ -71,6 +72,9 @@ enum Subcommand {
 
     /// Apply the latest diff produced by Codex agent as a `git apply` to your local working tree.
     #[clap(visible_alias = "a")]
+    /// Open the given patch as file diffs in the configured editor (e.g., VS Code).
+    #[clap(name = "diff-open", visible_alias = "od")]
+    DiffOpen(diff_open::DiffOpenCommand),
     Apply(ApplyCommand),
 
     /// Internal: generate TypeScript protocol bindings.
@@ -183,6 +187,10 @@ async fn cli_main(codex_linux_sandbox_exe: Option<PathBuf>) -> anyhow::Result<()
         Some(Subcommand::Proto(mut proto_cli)) => {
             prepend_config_flags(&mut proto_cli.config_overrides, cli.config_overrides);
             proto::run_main(proto_cli).await?;
+        }
+        Some(Subcommand::DiffOpen(mut open_cli)) => {
+            prepend_config_flags(&mut open_cli.config_overrides, cli.config_overrides);
+            diff_open::run_diff_open(open_cli).await?;
         }
         Some(Subcommand::Completion(completion_cli)) => {
             print_completion(completion_cli);
