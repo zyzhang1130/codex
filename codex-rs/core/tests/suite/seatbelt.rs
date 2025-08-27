@@ -128,7 +128,9 @@ async fn if_git_repo_is_writable_root_then_dot_git_folder_is_read_only() {
 async fn danger_full_access_allows_all_writes() {
     let tmp = TempDir::new().expect("should be able to create temp dir");
     let test_scenario = create_test_scenario(&tmp);
-    let policy = SandboxPolicy::DangerFullAccess { read_blocklist: Vec::new() };
+    let policy = SandboxPolicy::DangerFullAccess {
+        read_blocklist: Vec::new(),
+    };
 
     test_scenario
         .run_test(
@@ -147,7 +149,9 @@ async fn danger_full_access_allows_all_writes() {
 async fn read_only_forbids_all_writes() {
     let tmp = TempDir::new().expect("should be able to create temp dir");
     let test_scenario = create_test_scenario(&tmp);
-    let policy = SandboxPolicy::ReadOnly { read_blocklist: Vec::new() };
+    let policy = SandboxPolicy::ReadOnly {
+        read_blocklist: Vec::new(),
+    };
 
     test_scenario
         .run_test(

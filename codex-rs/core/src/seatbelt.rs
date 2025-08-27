@@ -96,26 +96,27 @@ fn create_seatbelt_command_args(
         }
     };
 
-    let (file_read_policy, mut read_blocklist_args) = if sandbox_policy.get_read_blocklist().is_empty() {
-        (
-            "; allow read-only file operations\n(allow file-read*)".to_string(),
-            Vec::new(),
-        )
-    } else {
-        let mut args = Vec::new();
-        let mut deny_parts = Vec::new();
-        for (idx, path) in sandbox_policy.get_read_blocklist().iter().enumerate() {
-            let canon = path.canonicalize().unwrap_or_else(|_| path.clone());
-            let param = format!("READ_BLOCK_{idx}");
-            args.push(format!("-D{param}={}", canon.to_string_lossy()));
-            deny_parts.push(format!("(literal (param \"{param}\"))"));
-        }
-        let policy = format!(
-            "; allow read-only file operations\n(allow file-read*)\n(deny file-read* {})",
-            deny_parts.join(" ")
-        );
-        (policy, args)
-    };
+    let (file_read_policy, mut read_blocklist_args) =
+        if sandbox_policy.get_read_blocklist().is_empty() {
+            (
+                "; allow read-only file operations\n(allow file-read*)".to_string(),
+                Vec::new(),
+            )
+        } else {
+            let mut args = Vec::new();
+            let mut deny_parts = Vec::new();
+            for (idx, path) in sandbox_policy.get_read_blocklist().iter().enumerate() {
+                let canon = path.canonicalize().unwrap_or_else(|_| path.clone());
+                let param = format!("READ_BLOCK_{idx}");
+                args.push(format!("-D{param}={}", canon.to_string_lossy()));
+                deny_parts.push(format!("(literal (param \"{param}\"))"));
+            }
+            let policy = format!(
+                "; allow read-only file operations\n(allow file-read*)\n(deny file-read* {})",
+                deny_parts.join(" ")
+            );
+            (policy, args)
+        };
 
     // TODO(mbolin): apply_patch calls must also honor the SandboxPolicy.
     let network_policy = if sandbox_policy.has_full_network_access() {

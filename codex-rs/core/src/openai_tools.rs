@@ -599,7 +599,9 @@ mod tests {
         let config = ToolsConfig::new(&ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
-            sandbox_policy: SandboxPolicy::ReadOnly { read_blocklist: Vec::new() },
+            sandbox_policy: SandboxPolicy::ReadOnly {
+                read_blocklist: Vec::new(),
+            },
             include_plan_tool: true,
             include_apply_patch_tool: false,
             include_web_search_request: true,
@@ -616,7 +618,9 @@ mod tests {
         let config = ToolsConfig::new(&ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
-            sandbox_policy: SandboxPolicy::ReadOnly { read_blocklist: Vec::new() },
+            sandbox_policy: SandboxPolicy::ReadOnly {
+                read_blocklist: Vec::new(),
+            },
             include_plan_tool: true,
             include_apply_patch_tool: false,
             include_web_search_request: true,
@@ -633,7 +637,9 @@ mod tests {
         let config = ToolsConfig::new(&ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
-            sandbox_policy: SandboxPolicy::ReadOnly { read_blocklist: Vec::new() },
+            sandbox_policy: SandboxPolicy::ReadOnly {
+                read_blocklist: Vec::new(),
+            },
             include_plan_tool: false,
             include_apply_patch_tool: false,
             include_web_search_request: true,
@@ -732,7 +738,9 @@ mod tests {
         let config = ToolsConfig::new(&ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
-            sandbox_policy: SandboxPolicy::ReadOnly { read_blocklist: Vec::new() },
+            sandbox_policy: SandboxPolicy::ReadOnly {
+                read_blocklist: Vec::new(),
+            },
             include_plan_tool: false,
             include_apply_patch_tool: false,
             include_web_search_request: false,
@@ -807,7 +815,9 @@ mod tests {
         let config = ToolsConfig::new(&ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
-            sandbox_policy: SandboxPolicy::ReadOnly { read_blocklist: Vec::new() },
+            sandbox_policy: SandboxPolicy::ReadOnly {
+                read_blocklist: Vec::new(),
+            },
             include_plan_tool: false,
             include_apply_patch_tool: false,
             include_web_search_request: true,
@@ -865,7 +875,9 @@ mod tests {
         let config = ToolsConfig::new(&ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
-            sandbox_policy: SandboxPolicy::ReadOnly { read_blocklist: Vec::new() },
+            sandbox_policy: SandboxPolicy::ReadOnly {
+                read_blocklist: Vec::new(),
+            },
             include_plan_tool: false,
             include_apply_patch_tool: false,
             include_web_search_request: true,
@@ -918,7 +930,9 @@ mod tests {
         let config = ToolsConfig::new(&ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
-            sandbox_policy: SandboxPolicy::ReadOnly { read_blocklist: Vec::new() },
+            sandbox_policy: SandboxPolicy::ReadOnly {
+                read_blocklist: Vec::new(),
+            },
             include_plan_tool: false,
             include_apply_patch_tool: false,
             include_web_search_request: true,
@@ -974,7 +988,9 @@ mod tests {
         let config = ToolsConfig::new(&ToolsConfigParams {
             model_family: &model_family,
             approval_policy: AskForApproval::Never,
-            sandbox_policy: SandboxPolicy::ReadOnly { read_blocklist: Vec::new() },
+            sandbox_policy: SandboxPolicy::ReadOnly {
+                read_blocklist: Vec::new(),
+            },
             include_plan_tool: false,
             include_apply_patch_tool: false,
             include_web_search_request: true,

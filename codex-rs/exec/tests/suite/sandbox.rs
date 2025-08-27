@@ -170,7 +170,9 @@ fn unix_sock_body() {
 async fn allow_unix_socketpair_recvfrom() {
     run_code_under_sandbox(
         "allow_unix_socketpair_recvfrom",
-        &SandboxPolicy::ReadOnly { read_blocklist: Vec::new() },
+        &SandboxPolicy::ReadOnly {
+            read_blocklist: Vec::new(),
+        },
         || async { unix_sock_body() },
     )
     .await

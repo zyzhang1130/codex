@@ -950,7 +950,9 @@ network_access = false  # This should be ignored.
             .expect("TOML deserialization should succeed");
         let sandbox_mode_override = None;
         assert_eq!(
-            SandboxPolicy::DangerFullAccess { read_blocklist: Vec::new() },
+            SandboxPolicy::DangerFullAccess {
+                read_blocklist: Vec::new()
+            },
             sandbox_full_access_cfg.derive_sandbox_policy(sandbox_mode_override)
         );
 
@@ -965,7 +967,9 @@ network_access = true  # This should be ignored.
             .expect("TOML deserialization should succeed");
         let sandbox_mode_override = None;
         assert_eq!(
-            SandboxPolicy::ReadOnly { read_blocklist: Vec::new() },
+            SandboxPolicy::ReadOnly {
+                read_blocklist: Vec::new()
+            },
             sandbox_read_only_cfg.derive_sandbox_policy(sandbox_mode_override)
         );
 

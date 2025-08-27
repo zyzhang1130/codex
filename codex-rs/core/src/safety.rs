@@ -305,7 +305,9 @@ mod tests {
         // Should not be a trusted command
         let command = vec!["git commit".to_string()];
         let approval_policy = AskForApproval::OnRequest;
-        let sandbox_policy = SandboxPolicy::ReadOnly { read_blocklist: Vec::new() };
+        let sandbox_policy = SandboxPolicy::ReadOnly {
+            read_blocklist: Vec::new(),
+        };
         let approved: HashSet<Vec<String>> = HashSet::new();
         let request_escalated_privileges = true;
 
@@ -324,7 +326,9 @@ mod tests {
     fn test_request_escalated_privileges_no_sandbox_fallback() {
         let command = vec!["git".to_string(), "commit".to_string()];
         let approval_policy = AskForApproval::OnRequest;
-        let sandbox_policy = SandboxPolicy::ReadOnly { read_blocklist: Vec::new() };
+        let sandbox_policy = SandboxPolicy::ReadOnly {
+            read_blocklist: Vec::new(),
+        };
         let approved: HashSet<Vec<String>> = HashSet::new();
         let request_escalated_privileges = false;
 

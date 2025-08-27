@@ -273,10 +273,7 @@ async fn read_blocklist_blocks_file() {
 
     // Reading blocked path fails.
     let params_block = ExecParams {
-        command: vec![
-            "cat".to_string(),
-            tmp_path.to_string_lossy().to_string(),
-        ],
+        command: vec!["cat".to_string(), tmp_path.to_string_lossy().to_string()],
         cwd,
         timeout_ms: Some(SHORT_TIMEOUT_MS),
         env,

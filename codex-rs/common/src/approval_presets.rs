@@ -26,7 +26,9 @@ pub fn builtin_approval_presets() -> Vec<ApprovalPreset> {
             label: "Read Only",
             description: "Codex can read files and answer questions. Codex requires approval to make edits, run commands, or access network",
             approval: AskForApproval::OnRequest,
-            sandbox: SandboxPolicy::ReadOnly { read_blocklist: Vec::new() },
+            sandbox: SandboxPolicy::ReadOnly {
+                read_blocklist: Vec::new(),
+            },
         },
         ApprovalPreset {
             id: "auto",
@@ -40,7 +42,9 @@ pub fn builtin_approval_presets() -> Vec<ApprovalPreset> {
             label: "Full Access",
             description: "Codex can read files, make edits, and run commands with network access, without approval. Exercise caution",
             approval: AskForApproval::Never,
-            sandbox: SandboxPolicy::DangerFullAccess { read_blocklist: Vec::new() },
+            sandbox: SandboxPolicy::DangerFullAccess {
+                read_blocklist: Vec::new(),
+            },
         },
     ]
 }
