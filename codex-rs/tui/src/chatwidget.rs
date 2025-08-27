@@ -522,6 +522,37 @@ impl ChatWidget {
             Some(c) => c,
             None => return,
         };
+        // Pre-check that the editor CLI is available on PATH so we can emit a clear warning
+        // when diffs cannot be opened (e.g., VS Code CLI not installed).
+        let precheck = std::process::Command::new(editor_cmd)
+            .arg("--version")
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status();
+        if precheck.is_err() {
+            let msg = match editor_cmd {
+                "code" => "Could not open editor diffs: VS Code CLI 'code' not found. In VS Code, run: Shell Command: Install 'code' command in PATH.",
+                "code-insiders" => "Could not open editor diffs: VS Code Insiders CLI 'code-insiders' not found. Install the CLI or switch file_opener.",
+                other => {
+                    let hint = format!("Could not open editor diffs: '{other}' not found on PATH. Ensure the editor CLI is installed or set file_opener accordingly.");
+                    // As we need a &str, temporarily store in a local String and then use as_str
+                    // within a separate binding.
+                    // However, we can't return a reference to a temporary, so below we just
+                    // construct the final String for the warning.
+                    // We'll ignore this branch here and handle via the fallback below.
+                    let _ = hint;
+                    "__OTHER_EDITOR__"
+                }
+            };
+            if msg == "__OTHER_EDITOR__" {
+                let hint = format!("Could not open editor diffs: '{}' not found on PATH. Ensure the editor CLI is installed or set file_opener accordingly.", editor_cmd);
+                self.add_to_history(history_cell::new_stream_error_event(hint));
+            } else {
+                self.add_to_history(history_cell::new_stream_error_event(msg.to_string()));
+            }
+            return;
+        }
         let temp = match tempfile::TempDir::new() {
             Ok(t) => t,
             Err(_) => return,
